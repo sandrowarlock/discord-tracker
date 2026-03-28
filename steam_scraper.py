@@ -36,6 +36,8 @@ def get_steam_games(filter_type, limit):
                 break
 
             items = data.get("items", [])
+            if items and start == 0:
+                print(f"  DEBUG first item: {items[0]}")
             if not items:
                 print("  No more items, stopping")
                 break
