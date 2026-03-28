@@ -27,30 +27,48 @@ def get_top_wishlisted_games(limit=4000):
     games = []
     seen_ids = set()
     page = 0
+    max_retries = 3
 
     while len(games) < limit:
-        response = requests.get(
-            "https://store.steampowered.com/search/results/",
-            params={
-                "filter": "popularwishlist",
-                "json": 1,
-                "start": page * 50,
-                "count": 50
-            },
-            timeout=30
-        )
-        data = response.json()
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(
+                    "https://store.steampowered.com/search/results/",
+                    params={
+                        "filter": "popularwishlist",
+                        "json": 1,
+                        "start": page * 50,
+                        "count": 50
+                    },
+                    timeout=30
+                )
+                data = response.json()
+                if data is None:
+                    raise ValueError("Empty response from Steam")
+                break
+            except Exception as e:
+                print(f"  Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(5)
+                else:
+                    print("  Max retries reached, stopping wishlisted fetch")
+                    return games
+
         items = data.get("items", [])
         if not items:
+            print("  No more items returned, stopping")
             break
+
         for item in items:
             app_id = item.get("id")
             name = item.get("name")
             if app_id and app_id not in seen_ids:
                 seen_ids.add(app_id)
                 games.append({"steam_app_id": app_id, "name": name})
+
+        print(f"  Fetched {len(games)} wishlisted games so far...")
         page += 1
-        time.sleep(1)
+        time.sleep(2)
 
     return games[:limit]
 
