@@ -9,66 +9,54 @@ supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 DISCORD_INVITE_PATTERN = re.compile(r'discord\.gg/([a-zA-Z0-9]+)')
 
-def get_top_played_games(limit=1000):
-    """Fetch top played games from SteamSpy"""
-    print(f"Fetching top {limit} played games from SteamSpy...")
-    response = requests.get(
-        "https://steamspy.com/api.php",
-        params={"request": "top100in2weeks"},
-        timeout=30
-    )
-    data = response.json()
-    games = [{"steam_app_id": int(k), "name": v["name"]} for k, v in data.items()]
-    return games[:limit]
-
-def get_top_wishlisted_games(limit=4000):
-    """Fetch top wishlisted games from Steam"""
-    print(f"Fetching top {limit} wishlisted games from Steam...")
+def get_steam_games(filter_type, limit):
+    """Fetch games from Steam search with pagination"""
+    print(f"Fetching top {limit} {filter_type} games from Steam...")
     games = []
     seen_ids = set()
-    page = 0
-    max_retries = 3
+    start = 0
+    batch_size = 100
 
     while len(games) < limit:
-        for attempt in range(max_retries):
-            try:
-                response = requests.get(
-                    "https://store.steampowered.com/search/results/",
-                    params={
-                        "filter": "popularwishlist",
-                        "json": 1,
-                        "start": page * 50,
-                        "count": 50
-                    },
-                    timeout=30
-                )
-                data = response.json()
-                if data is None:
-                    raise ValueError("Empty response from Steam")
+        try:
+            response = requests.get(
+                "https://store.steampowered.com/search/results/",
+                params={
+                    "filter": filter_type,
+                    "json": 1,
+                    "start": start,
+                    "count": batch_size
+                },
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=30
+            )
+            data = response.json()
+            if data is None:
+                print("  Empty response, stopping")
                 break
-            except Exception as e:
-                print(f"  Attempt {attempt + 1} failed: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(5)
-                else:
-                    print("  Max retries reached, stopping wishlisted fetch")
-                    return games
 
-        items = data.get("items", [])
-        if not items:
-            print("  No more items returned, stopping")
+            items = data.get("items", [])
+            if not items:
+                print("  No more items, stopping")
+                break
+
+            for item in items:
+                app_id = item.get("id")
+                name = item.get("name")
+                if app_id and app_id not in seen_ids:
+                    seen_ids.add(app_id)
+                    games.append({
+                        "steam_app_id": app_id,
+                        "name": name
+                    })
+
+            print(f"  Fetched {len(games)} games so far...")
+            start += batch_size
+            time.sleep(2)
+
+        except Exception as e:
+            print(f"  Error at start={start}: {e}")
             break
-
-        for item in items:
-            app_id = item.get("id")
-            name = item.get("name")
-            if app_id and app_id not in seen_ids:
-                seen_ids.add(app_id)
-                games.append({"steam_app_id": app_id, "name": name})
-
-        print(f"  Fetched {len(games)} wishlisted games so far...")
-        page += 1
-        time.sleep(2)
 
     return games[:limit]
 
@@ -134,11 +122,10 @@ def process_games(games, steam_list):
         time.sleep(1)
 
 if __name__ == "__main__":
-    played_games = get_top_played_games(1000)
+    played_games = get_steam_games("mostplayed", 1000)
     process_games(played_games, "most_played")
 
-    wishlisted_games = get_top_wishlisted_games(4000)
+    wishlisted_games = get_steam_games("popularwishlist", 4000)
     process_games(wishlisted_games, "most_wishlisted")
 
     print("Done!")
-supabase
