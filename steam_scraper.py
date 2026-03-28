@@ -124,6 +124,18 @@ def process_games(games, steam_list):
         time.sleep(1)
 
 if __name__ == "__main__":
+    # Test if Steam is reachable
+    try:
+        test = requests.get(
+            "https://store.steampowered.com/search/results/",
+            params={"filter": "mostplayed", "json": 1, "start": 0, "count": 1},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=10
+        )
+        print(f"Steam response code: {test.status_code}")
+        print(f"Steam response: {test.text[:200]}")
+    except Exception as e:
+        print(f"Steam unreachable: {e}")
     played_games = get_steam_games("mostplayed", 1000)
     process_games(played_games, "most_played")
 
