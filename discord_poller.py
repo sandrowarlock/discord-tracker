@@ -79,7 +79,7 @@ def save_snapshot(server_id, member_count, online_count, retries=3):
     """Save a daily snapshot to the database"""
     for attempt in range(retries):
         try:
-            supabase.table("daily_snapshots").upsert({
+            get_supabase().table("daily_snapshots").upsert({
                 "discord_server_id": server_id,
                 "snapshot_date": date.today().isoformat(),
                 "member_count": member_count,
@@ -95,7 +95,7 @@ def deactivate_server(server_id, reason, retries=3):
     """Mark a server as inactive"""
     for attempt in range(retries):
         try:
-            supabase.table("discord_servers").update({
+            get_supabase().table("discord_servers").update({
                 "is_active": False,
                 "inactive_reason": reason
             }).eq("id", server_id).execute()
@@ -109,7 +109,7 @@ def update_server_info(server_id, guild_id, guild_name, retries=3):
     """Update guild ID and name if we have them"""
     for attempt in range(retries):
         try:
-            supabase.table("discord_servers").update({
+            get_supabase().table("discord_servers").update({
                 "guild_id": guild_id,
                 "guild_name": guild_name,
                 "last_checked_at": date.today().isoformat()
