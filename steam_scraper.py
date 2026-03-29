@@ -8,6 +8,23 @@ from supabase import create_client
 def get_supabase():
     return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
+NTFY_TOPIC = "discord-tracker-maciej-g57gt683jg730ds"
+
+def send_alert(title, message, priority="default"):
+    """Send notification via ntfy.sh"""
+    try:
+        requests.post(
+            f"https://ntfy.sh/{NTFY_TOPIC}",
+            data=message.encode("utf-8"),
+            headers={
+                "Title": title,
+                "Priority": priority
+            },
+            timeout=10
+        )
+    except Exception as e:
+        print(f"Failed to send alert: {e}")
+
 DISCORD_INVITE_PATTERN = re.compile(
     r'(?:discord\.gg(?:/|%2F)|discord\.com(?:/|%2F)invite(?:/|%2F))([a-zA-Z0-9]+)'
 )
@@ -125,7 +142,7 @@ def process_games(games, steam_list):
     """Process a list of games - upsert them and find their Discord servers"""
     print(f"Processing {len(games)} {steam_list} games...")
 
-# Get steam_app_ids that already have a discord server linked
+    # Get steam_app_ids that already have a discord server linked
     linked_ids = set()
     offset = 0
     batch_size = 1000
@@ -181,10 +198,29 @@ def process_games(games, steam_list):
         time.sleep(1)
 
 if __name__ == "__main__":
-    played_games = get_steam_games("mostplayed", 1000)
-    process_games(played_games, "most_played")
+    try:
+        played_games = get_steam_games("mostplayed", 1000)
+        process_games(played_games, "most_played")
 
-    wishlisted_games = get_steam_games("popularwishlist", 4000)
-    process_games(wishlisted_games, "most_wishlisted")
+        wishlisted_games = get_steam_games("popularwishlist", 4000)
+        process_games(wishlisted_games, "most_wishlisted")
 
-    print("Done!")
+        total_games = len(played_games) + len(wishlisted_games)
+        discord_result = get_supabase().table("discord_servers")\
+            .select("id", count="exact")\
+            .eq("is_active", True)\
+            .execute()
+        active_servers = discord_result.count
+
+        send_alert(
+            "✅ Steam Scraper Complete",
+            f"Games processed: {total_games} | Active Discord servers: {active_servers}"
+        )
+
+    except Exception as e:
+        send_alert(
+            "🔴 Steam Scraper Failed",
+            f"Error: {str(e)}",
+            priority="high"
+        )
+        raise
