@@ -224,13 +224,13 @@ if __name__ == "__main__":
         active_servers = discord_result.count
 
         send_alert(
-            "✅ Steam Scraper Complete",
+            "Steam Scraper Complete",
             f"Games processed: {total_games} | Active Discord servers: {active_servers}"
         )
 
     except Exception as e:
         send_alert(
-            "🔴 Steam Scraper Failed",
+            "Steam Scraper Failed",
             f"Error: {str(e)}",
             priority="high"
         )
