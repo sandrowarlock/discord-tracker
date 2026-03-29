@@ -5,7 +5,8 @@ import requests
 from supabase import create_client
 
 # Connect to Supabase
-supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+def get_supabase():
+    return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 DISCORD_INVITE_PATTERN = re.compile(
     r'(?:discord\.gg/|discord\.com/invite/)([a-zA-Z0-9]+)'
@@ -89,10 +90,9 @@ def get_discord_invite(steam_app_id):
     return None
 
 def upsert_game(game, steam_list, rank, retries=3):
-    """Insert or update a game in the database"""
     for attempt in range(retries):
         try:
-            supabase.table("games").upsert({
+            get_supabase().table("games").upsert({
                 "steam_app_id": game["steam_app_id"],
                 "name": game["name"],
                 "steam_list": steam_list,
@@ -108,10 +108,9 @@ def upsert_game(game, steam_list, rank, retries=3):
                 print(f"  Giving up on {game['name']}, continuing...")
 
 def upsert_discord_server(game_id, invite_code, retries=3):
-    """Insert or update a discord server in the database"""
     for attempt in range(retries):
         try:
-            supabase.table("discord_servers").upsert({
+            get_supabase().table("discord_servers").upsert({
                 "game_id": game_id,
                 "invite_code": invite_code,
                 "is_active": True
@@ -135,12 +134,11 @@ def process_games(games, steam_list):
         upsert_game(game, steam_list, rank)
 
         # Get game ID from database
-        result = supabase.table("games")\
+        result = get_supabase().table("games")\
             .select("id")\
             .eq("steam_app_id", steam_app_id)\
             .single()\
             .execute()
-        game_id = result.data["id"]
 
         # Look for Discord link
         invite_code = get_discord_invite(steam_app_id)
