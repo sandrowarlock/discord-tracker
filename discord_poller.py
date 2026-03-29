@@ -8,6 +8,23 @@ from supabase import create_client
 def get_supabase():
     return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
+NTFY_TOPIC = "discord-tracker-maciej-g57gt683jg730ds"
+
+def send_alert(title, message, priority="default"):
+    """Send notification via ntfy.sh"""
+    try:
+        requests.post(
+            f"https://ntfy.sh/{NTFY_TOPIC}",
+            data=message.encode("utf-8"),
+            headers={
+                "Title": title,
+                "Priority": priority
+            },
+            timeout=10
+        )
+    except Exception as e:
+        print(f"Failed to send alert: {e}")
+
 DISCORD_API = "https://discord.com/api/v9/invites/{}?with_counts=true"
 
 def get_active_servers():
@@ -170,3 +187,26 @@ if __name__ == "__main__":
     print(f"  Dead invites: {dead_count}")
     print(f"  Deactivated (low members): {deactivated_count}")
     print(f"  Errors: {error_count}")
+
+    # Send daily summary
+    total = ok_count + dead_count + deactivated_count + error_count
+    error_rate = error_count / total if total > 0 else 0
+
+    if error_rate > 0.1:
+        send_alert(
+            "⚠️ Discord Tracker Warning",
+            f"High error rate: {error_count}/{total} requests failed",
+            priority="high"
+        )
+
+    if ok_count < 100:
+        send_alert(
+            "⚠️ Discord Tracker Warning",
+            f"Very few snapshots saved: {ok_count}. Something may be wrong.",
+            priority="high"
+        )
+
+    send_alert(
+        "✅ Discord Tracker Daily Summary",
+        f"Snapshots: {ok_count} | Dead invites: {dead_count} | Deactivated: {deactivated_count} | Errors: {error_count}"
+    )
