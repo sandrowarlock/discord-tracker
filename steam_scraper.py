@@ -126,12 +126,34 @@ def upsert_discord_server(game_id, invite_code, retries=3):
 def process_games(games, steam_list):
     """Process a list of games - upsert them and find their Discord servers"""
     print(f"Processing {len(games)} {steam_list} games...")
+    
+    # Get all steam_app_ids already in discord_servers to skip them
+    existing = get_supabase().table("games")\
+        .select("steam_app_id")\
+        .not_.is_("discord_servers", "null")\
+        .execute()
+    
+    # Get steam_app_ids that already have a discord server linked
+    linked_ids = set()
+    linked_result = get_supabase().table("discord_servers")\
+        .select("game_id, games(steam_app_id)")\
+        .execute()
+    for row in linked_result.data:
+        if row.get("games"):
+            linked_ids.add(row["games"]["steam_app_id"])
+
     for rank, game in enumerate(games, 1):
         steam_app_id = game["steam_app_id"]
-        print(f"[{rank}/{len(games)}] {game['name']} ({steam_app_id})")
 
-        # Upsert the game
+        # Always upsert the game itself (fast, no Steam page request)
         upsert_game(game, steam_list, rank)
+
+        # Skip Steam page scrape if we already found a Discord for this game
+        if steam_app_id in linked_ids:
+            print(f"[{rank}/{len(games)}] {game['name']} - already has Discord, skipping")
+            continue
+
+        print(f"[{rank}/{len(games)}] {game['name']} ({steam_app_id})")
 
         # Get game ID from database
         result = get_supabase().table("games")\
@@ -139,6 +161,7 @@ def process_games(games, steam_list):
             .eq("steam_app_id", steam_app_id)\
             .single()\
             .execute()
+        game_id = result.data["id"]
 
         # Look for Discord link
         invite_code = get_discord_invite(steam_app_id)
