@@ -39,16 +39,29 @@ def get_discord_invite(steam_app_id):
 def upsert_discord_server(game_id, invite_code, retries=3):
     for attempt in range(retries):
         try:
-            get_supabase().table("discord_servers").upsert({
+            # Check if this game_id + invite_code combo already exists
+            existing = get_supabase().table("discord_servers")\
+                .select("id")\
+                .eq("game_id", game_id)\
+                .eq("invite_code", invite_code)\
+                .execute()
+            
+            if existing.data:
+                # Already exists, skip
+                return
+            
+            get_supabase().table("discord_servers").insert({
                 "game_id": game_id,
                 "invite_code": invite_code,
                 "is_active": True
-            }, on_conflict="invite_code").execute()
+            }).execute()
             return
         except Exception as e:
-            print(f"  DB error attempt {attempt + 1}: {e}")
+            print(f"  DB error on upsert_discord_server attempt {attempt + 1}: {e}")
             if attempt < retries - 1:
                 time.sleep(5)
+            else:
+                print(f"  Giving up on invite {invite_code}, continuing...")
 
 if __name__ == "__main__":
     # Get all games without discord directly via SQL
