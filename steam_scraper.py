@@ -125,14 +125,29 @@ def process_games(games, steam_list):
     """Process a list of games - upsert them and find their Discord servers"""
     print(f"Processing {len(games)} {steam_list} games...")
 
-    # Get steam_app_ids that already have a discord server linked
+# Get steam_app_ids that already have a discord server linked
     linked_ids = set()
-    linked_result = get_supabase().table("discord_servers")\
-        .select("game_id, games(steam_app_id)")\
-        .execute()
-    for row in linked_result.data:
-        if row.get("games"):
-            linked_ids.add(row["games"]["steam_app_id"])
+    offset = 0
+    batch_size = 1000
+
+    while True:
+        linked_result = get_supabase().table("discord_servers")\
+            .select("game_id, games(steam_app_id)")\
+            .range(offset, offset + batch_size - 1)\
+            .execute()
+        
+        batch = linked_result.data
+        if not batch:
+            break
+            
+        for row in batch:
+            if row.get("games"):
+                linked_ids.add(row["games"]["steam_app_id"])
+        
+        if len(batch) < batch_size:
+            break
+            
+        offset += batch_size
 
     for rank, game in enumerate(games, 1):
         steam_app_id = game["steam_app_id"]
