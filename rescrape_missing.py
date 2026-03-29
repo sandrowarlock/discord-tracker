@@ -109,21 +109,3 @@ if __name__ == "__main__":
         time.sleep(1)
 
     print(f"\nDone! Found {found_count} new Discord servers out of {len(missing)} games checked")
-
-# Debug Ready or Not
-    test_id = 1144200
-    response = requests.get(
-        f"https://store.steampowered.com/app/{test_id}",
-        timeout=15,
-        headers={"User-Agent": "Mozilla/5.0"},
-        cookies={
-            "birthtime": "631152001",
-            "lastagecheckage": "1-0-2000",
-            "wants_mature_content": "1"
-        }
-    )
-    print(f"Status: {response.status_code}")
-    lines = [l.strip() for l in response.text.split('\n') if 'discord' in l.lower()]
-    print(f"Discord mentions found: {len(lines)}")
-    for l in lines[:5]:
-        print(f"  {l[:200]}")
