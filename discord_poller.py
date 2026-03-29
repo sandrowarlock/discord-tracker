@@ -194,19 +194,19 @@ if __name__ == "__main__":
 
     if error_rate > 0.1:
         send_alert(
-            "⚠️ Discord Tracker Warning",
+            "Discord Tracker Warning",
             f"High error rate: {error_count}/{total} requests failed",
             priority="high"
         )
 
     if ok_count < 100:
         send_alert(
-            "⚠️ Discord Tracker Warning",
+            "Discord Tracker Warning",
             f"Very few snapshots saved: {ok_count}. Something may be wrong.",
             priority="high"
         )
 
     send_alert(
-        "✅ Discord Tracker Daily Summary",
+        "Discord Tracker Daily Summary",
         f"Snapshots: {ok_count} | Dead invites: {dead_count} | Deactivated: {deactivated_count} | Errors: {error_count}"
     )
