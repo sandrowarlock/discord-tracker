@@ -7,7 +7,9 @@ from supabase import create_client
 # Connect to Supabase
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
-DISCORD_INVITE_PATTERN = re.compile(r'discord\.gg/([a-zA-Z0-9]+)')
+DISCORD_INVITE_PATTERN = re.compile(
+    r'(?:discord\.gg/|discord\.com/invite/)([a-zA-Z0-9]+)'
+)
 
 def get_steam_games(filter_type, limit):
     """Fetch games from Steam search with pagination"""
