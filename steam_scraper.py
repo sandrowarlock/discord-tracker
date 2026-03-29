@@ -74,7 +74,12 @@ def get_discord_invite(steam_app_id):
         response = requests.get(
             f"https://store.steampowered.com/app/{steam_app_id}",
             timeout=15,
-            headers={"User-Agent": "Mozilla/5.0"}
+            headers={"User-Agent": "Mozilla/5.0"},
+            cookies={
+                "birthtime": "631152001",  # bypasses age gate
+                "lastagecheckage": "1-0-2000",
+                "wants_mature_content": "1"  # bypasses mature content gate
+            }
         )
         match = DISCORD_INVITE_PATTERN.search(response.text)
         if match:
