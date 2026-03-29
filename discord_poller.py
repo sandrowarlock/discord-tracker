@@ -5,17 +5,35 @@ from datetime import date
 from supabase import create_client
 
 # Connect to Supabase
-supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+def get_supabase():
+    return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 DISCORD_API = "https://discord.com/api/v9/invites/{}?with_counts=true"
 
 def get_active_servers():
     """Fetch all active Discord servers from the database"""
-    result = supabase.table("discord_servers")\
-        .select("id, invite_code, game_id")\
-        .eq("is_active", True)\
-        .execute()
-    return result.data
+    all_servers = []
+    offset = 0
+    batch_size = 1000
+
+    while True:
+        result = get_supabase().table("discord_servers")\
+            .select("id, invite_code, game_id")\
+            .eq("is_active", True)\
+            .range(offset, offset + batch_size - 1)\
+            .execute()
+        
+        batch = result.data
+        if not batch:
+            break
+            
+        all_servers.extend(batch)
+        if len(batch) < batch_size:
+            break
+            
+        offset += batch_size
+
+    return all_servers
 
 def poll_invite(invite_code):
     """Hit the Discord invite API and return member/online counts"""
