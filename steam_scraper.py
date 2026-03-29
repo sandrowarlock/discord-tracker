@@ -39,8 +39,6 @@ def get_steam_games(filter_type, limit):
                 break
 
             items = data.get("items", [])
-            if items and start == 0:
-                print(f"  DEBUG first item: {items[0]}")
             if not items:
                 print("  No more items, stopping")
                 break
@@ -126,13 +124,7 @@ def upsert_discord_server(game_id, invite_code, retries=3):
 def process_games(games, steam_list):
     """Process a list of games - upsert them and find their Discord servers"""
     print(f"Processing {len(games)} {steam_list} games...")
-    
-    # Get all steam_app_ids already in discord_servers to skip them
-    existing = get_supabase().table("games")\
-        .select("steam_app_id")\
-        .not_.is_("discord_servers", "null")\
-        .execute()
-    
+
     # Get steam_app_ids that already have a discord server linked
     linked_ids = set()
     linked_result = get_supabase().table("discord_servers")\
