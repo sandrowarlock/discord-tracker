@@ -43,14 +43,18 @@ def get_steam_games(filter_type, limit):
                 break
 
             for item in items:
-                app_id = item.get("id")
                 name = item.get("name")
-                if app_id and app_id not in seen_ids:
-                    seen_ids.add(app_id)
-                    games.append({
-                        "steam_app_id": app_id,
-                        "name": name
-                    })
+                logo = item.get("logo", "")
+                # Extract app ID from logo URL e.g. /apps/730/capsule
+                match = re.search(r'/apps/(\d+)/', logo)
+                if match and name:
+                    app_id = int(match.group(1))
+                    if app_id not in seen_ids:
+                        seen_ids.add(app_id)
+                        games.append({
+                            "steam_app_id": app_id,
+                            "name": name
+                        })
 
             print(f"  Fetched {len(games)} games so far...")
             start += batch_size
@@ -124,18 +128,6 @@ def process_games(games, steam_list):
         time.sleep(1)
 
 if __name__ == "__main__":
-    # Test if Steam is reachable
-    try:
-        test = requests.get(
-            "https://store.steampowered.com/search/results/",
-            params={"filter": "mostplayed", "json": 1, "start": 0, "count": 1},
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=10
-        )
-        print(f"Steam response code: {test.status_code}")
-        print(f"Steam response: {test.text[:200]}")
-    except Exception as e:
-        print(f"Steam unreachable: {e}")
     played_games = get_steam_games("mostplayed", 1000)
     process_games(played_games, "most_played")
 
