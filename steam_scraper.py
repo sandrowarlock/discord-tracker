@@ -88,23 +88,41 @@ def get_discord_invite(steam_app_id):
         print(f"Error fetching Steam page for {steam_app_id}: {e}")
     return None
 
-def upsert_game(game, steam_list, rank):
+def upsert_game(game, steam_list, rank, retries=3):
     """Insert or update a game in the database"""
-    supabase.table("games").upsert({
-        "steam_app_id": game["steam_app_id"],
-        "name": game["name"],
-        "steam_list": steam_list,
-        "steam_rank": rank,
-        "is_released": steam_list == "most_played"
-    }, on_conflict="steam_app_id").execute()
+    for attempt in range(retries):
+        try:
+            supabase.table("games").upsert({
+                "steam_app_id": game["steam_app_id"],
+                "name": game["name"],
+                "steam_list": steam_list,
+                "steam_rank": rank,
+                "is_released": steam_list == "most_played"
+            }, on_conflict="steam_app_id").execute()
+            return
+        except Exception as e:
+            print(f"  DB error on upsert_game attempt {attempt + 1}: {e}")
+            if attempt < retries - 1:
+                time.sleep(5)
+            else:
+                print(f"  Giving up on {game['name']}, continuing...")
 
-def upsert_discord_server(game_id, invite_code):
+def upsert_discord_server(game_id, invite_code, retries=3):
     """Insert or update a discord server in the database"""
-    supabase.table("discord_servers").upsert({
-        "game_id": game_id,
-        "invite_code": invite_code,
-        "is_active": True
-    }, on_conflict="invite_code").execute()
+    for attempt in range(retries):
+        try:
+            supabase.table("discord_servers").upsert({
+                "game_id": game_id,
+                "invite_code": invite_code,
+                "is_active": True
+            }, on_conflict="invite_code").execute()
+            return
+        except Exception as e:
+            print(f"  DB error on upsert_discord_server attempt {attempt + 1}: {e}")
+            if attempt < retries - 1:
+                time.sleep(5)
+            else:
+                print(f"  Giving up on invite {invite_code}, continuing...")
 
 def process_games(games, steam_list):
     """Process a list of games - upsert them and find their Discord servers"""
