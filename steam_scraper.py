@@ -125,11 +125,22 @@ def upsert_game(game, steam_list, rank, retries=3):
 def upsert_discord_server(game_id, invite_code, retries=3):
     for attempt in range(retries):
         try:
-            get_supabase().table("discord_servers").upsert({
+            # Check if this game_id + invite_code combo already exists
+            existing = get_supabase().table("discord_servers")\
+                .select("id")\
+                .eq("game_id", game_id)\
+                .eq("invite_code", invite_code)\
+                .execute()
+            
+            if existing.data:
+                # Already exists, skip
+                return
+            
+            get_supabase().table("discord_servers").insert({
                 "game_id": game_id,
                 "invite_code": invite_code,
                 "is_active": True
-            }, on_conflict="invite_code").execute()
+            }).execute()
             return
         except Exception as e:
             print(f"  DB error on upsert_discord_server attempt {attempt + 1}: {e}")
