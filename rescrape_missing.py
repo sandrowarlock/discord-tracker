@@ -58,17 +58,25 @@ if __name__ == "__main__":
     
     all_games = result.data
     
-    # Get game_ids that already have a discord server
+    # Get game_ids that already have an active discord server
     linked = get_supabase().table("discord_servers")\
         .select("game_id")\
+        .eq("is_active", True)\
         .execute()
     linked_ids = {row["game_id"] for row in linked.data}
     
-    # Filter to only games without discord
-    missing = [g for g in all_games if g["id"] not in linked_ids]
+    # Also get game_ids with dead invites to re-check
+    dead = get_supabase().table("discord_servers")\
+        .select("game_id")\
+        .eq("inactive_reason", "dead_invite")\
+        .execute()
+    dead_ids = {row["game_id"] for row in dead.data}
+    
+    # Filter to games without active discord OR with dead invites
+    missing = [g for g in all_games if g["id"] not in linked_ids or g["id"] in dead_ids]
     missing.sort(key=lambda x: (x["steam_list"] != "most_played", x["steam_rank"] or 9999))
     
-    print(f"Found {len(missing)} games without Discord links")
+    print(f"Found {len(missing)} games to re-check")
     print(f"Starting re-scrape...")
 
     found_count = 0
