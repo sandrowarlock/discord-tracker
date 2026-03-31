@@ -1,7 +1,7 @@
 name: Scrape Discord Discovery
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   scrape:
@@ -17,6 +17,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium
 
       - name: Run Discord discovery scraper
         run: python -u scrape_discord_discovery.py
