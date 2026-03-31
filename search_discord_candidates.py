@@ -123,10 +123,3 @@ if __name__ == "__main__":
 
     print(f"\nDone! Found Discord candidates for {found_count}/{len(games)} games")
     print(f"Review discord_candidates.csv and add confirmed official servers to Supabase")
-```
-
-Also add `beautifulsoup4` to `requirements.txt`:
-```
-requests
-supabase
-beautifulsoup4
