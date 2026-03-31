@@ -22,7 +22,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python -u find_discord_candidates.py
+        run: python -u search_discord_candidates.py
 
       - name: Upload results CSV
         uses: actions/upload-artifact@v4
