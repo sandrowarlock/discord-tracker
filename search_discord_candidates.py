@@ -51,18 +51,20 @@ def search_duckduckgo(query):
             headers={"User-Agent": "Mozilla/5.0"},
             timeout=15
         )
+        
+        # Debug: print raw HTML snippet
+        print(f"  Status: {response.status_code}")
+        print(f"  HTML snippet: {response.text[1000:2000]}")
+        
         soup = BeautifulSoup(response.text, "html.parser")
-        results = []
-
-        for result in soup.select(".result__url"):
-            url = result.get_text(strip=True)
-            if url:
-                # DuckDuckGo shows URLs without https:// prefix sometimes
-                if not url.startswith("http"):
-                    url = "https://" + url
-                results.append(url)
-
-        return results[:10]
+        
+        # Try multiple selectors
+        selectors = [".result__url", ".result__a", "a.result__url", ".results a"]
+        for selector in selectors:
+            results = soup.select(selector)
+            print(f"  Selector '{selector}' found {len(results)} elements")
+        
+        return []
 
     except Exception as e:
         print(f"  DuckDuckGo error: {e}")
