@@ -1,151 +1,107 @@
 import csv
-import json
 import time
-import re
-from playwright.sync_api import sync_playwright
+import requests
 
-BASE_URL = "https://discord.com/servers/gaming"
 OUTPUT_FILE = "discord_discovery.csv"
 MAX_PAGES = 150
 
-def extract_servers_from_page(page):
-    """Extract server data from the page's __NEXT_DATA__ JSON blob"""
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept": "application/json",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://discord.com/servers/gaming",
+    "X-Discord-Locale": "en-US",
+}
+
+def get_invite_from_server_page(guild_id, slug):
+    """Fetch the server's discovery page and extract the invite link"""
     try:
-        next_data = page.evaluate("() => JSON.parse(document.getElementById('__NEXT_DATA__').textContent)")
-        
-        # Navigate the JSON to find server listings
-        props = next_data.get("props", {})
-        page_props = props.get("pageProps", {})
-        
-        # Try to find guilds in various locations in the JSON
-        guilds = []
-        
-        # Look for guilds in dehydrated state
-        dehydrated = page_props.get("dehydratedState", {})
-        queries = dehydrated.get("queries", [])
-        
-        for query in queries:
-            data = query.get("state", {}).get("data", {})
-            if isinstance(data, dict):
-                nodes = data.get("nodes", [])
-                if nodes:
-                    guilds.extend(nodes)
-                    
-        # Also try guilds directly
-        if not guilds:
-            guilds = page_props.get("guilds", [])
-
-        return guilds
-
+        url = f"https://discord.com/servers/{slug}-{guild_id}"
+        response = requests.get(url, headers=HEADERS, timeout=15)
+        if response.status_code == 200:
+            import re
+            match = re.search(r'href="(https://discord\.gg/[^"]+)"', response.text)
+            if match:
+                invite_url = match.group(1)
+                return invite_url.replace("https://discord.gg/", "")
     except Exception as e:
-        print(f"  Error extracting JSON: {e}")
-        return []
+        print(f"    Error fetching server page: {e}")
+    return None
 
-def extract_from_html(page):
-    """Fallback: extract server data from rendered HTML"""
-    servers = []
-    
-    # Find all server cards
-    cards = page.query_selector_all("a[href*='/servers/']")
-    
-    for card in cards:
-        href = card.get_attribute("href") or ""
-        if not re.match(r"^/servers/[^/]+-\d+$", href):
-            continue
-            
-        match = re.search(r"-(\d+)$", href)
-        if not match:
-            continue
-            
-        guild_id = match.group(1)
-        slug = href.replace("/servers/", "")
-        invite_code = re.sub(r"-\d+$", "", slug)
-        
-        text = card.inner_text()
-        is_verified = "Verified" in text
-        is_partnered = "Partnered" in text
-        
-        members_match = re.search(r"([\d,]+)\s*Members", text)
-        online_match = re.search(r"([\d,]+)\s*Online", text)
-        members = members_match.group(1).replace(",", "") if members_match else ""
-        online = online_match.group(1).replace(",", "") if online_match else ""
-        
-        # Get server name
-        name_el = card.query_selector("h3, h4, h5, strong")
-        name = name_el.inner_text().strip() if name_el else slug
-        
-        servers.append({
-            "guild_id": guild_id,
-            "name": name,
-            "invite_code": invite_code,
-            "is_verified": is_verified,
-            "is_partnered": is_partnered,
-            "member_count": members,
-            "online_count": online,
-            "url": f"https://discord.com{href}"
-        })
-    
-    return servers
+def get_discovery_page(offset):
+    """Fetch a page of gaming servers from Discord's discovery API"""
+    try:
+        # Category 1 = Gaming on Discord discovery
+        response = requests.get(
+            "https://discord.com/api/v9/discovery/categories/1/guilds",
+            params={"offset": offset, "limit": 12},
+            headers=HEADERS,
+            timeout=15
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"  API returned {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"  Error: {e}")
+        return None
 
 if __name__ == "__main__":
     all_servers = {}
-    
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        )
-        page = context.new_page()
-        
-        with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=[
-                "guild_id", "name", "invite_code", "is_verified",
-                "is_partnered", "member_count", "online_count", "url"
-            ])
-            writer.writeheader()
-            
-            for page_num in range(MAX_PAGES):
-                offset = page_num * 12
-                url = BASE_URL if offset == 0 else f"{BASE_URL}?offset={offset}"
-                
-                print(f"Page {page_num + 1}/{MAX_PAGES} (offset={offset})")
-                
-                try:
-                    page.goto(url, wait_until="networkidle", timeout=30000)
-                    
-                    # Wait for server cards to appear
-                    page.wait_for_selector("a[href*='/servers/']", timeout=15000)
-                    
-                    # Small extra wait for full render
-                    time.sleep(2)
-                    
-                except Exception as e:
-                    print(f"  Page load error: {e}, skipping")
+
+    with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=[
+            "guild_id", "name", "invite_code", "is_verified",
+            "is_partnered", "member_count", "online_count"
+        ])
+        writer.writeheader()
+
+        for page_num in range(MAX_PAGES):
+            offset = page_num * 12
+            print(f"Page {page_num + 1}/{MAX_PAGES} (offset={offset})")
+
+            data = get_discovery_page(offset)
+
+            if not data:
+                print("  No data returned, stopping")
+                break
+
+            guilds = data.get("guilds", [])
+            if not guilds:
+                print("  No guilds in response, stopping")
+                break
+
+            for guild in guilds:
+                guild_id = guild.get("id")
+                if guild_id in all_servers:
                     continue
-                
-                # Try JSON extraction first, fall back to HTML
-                servers = extract_from_html(page)
-                
-                if not servers:
-                    print(f"  No servers found on this page, stopping")
-                    break
-                
-                new_count = 0
-                for server in servers:
-                    if server["guild_id"] not in all_servers:
-                        all_servers[server["guild_id"]] = server
-                        writer.writerow(server)
-                        new_count += 1
-                
-                print(f"  Found {len(servers)} servers, {new_count} new (total unique: {len(all_servers)})")
-                
-                if new_count == 0:
-                    print("  No new servers, likely reached end of results")
-                    break
-                
-                time.sleep(2)
-        
-        browser.close()
-    
+
+                name = guild.get("name", "")
+                slug = guild.get("vanity_url_code") or name.lower().replace(" ", "-")
+                is_verified = guild.get("verified", False)
+                is_partnered = guild.get("partnered", False)
+                member_count = guild.get("approximate_member_count", "")
+                online_count = guild.get("approximate_presence_count", "")
+
+                print(f"  [{len(all_servers)+1}] {name} - fetching invite...")
+                invite_code = get_invite_from_server_page(guild_id, slug)
+                print(f"    invite: {invite_code}")
+
+                row = {
+                    "guild_id": guild_id,
+                    "name": name,
+                    "invite_code": invite_code or "",
+                    "is_verified": is_verified,
+                    "is_partnered": is_partnered,
+                    "member_count": member_count,
+                    "online_count": online_count
+                }
+
+                all_servers[guild_id] = row
+                writer.writerow(row)
+
+            print(f"  Total unique so far: {len(all_servers)}")
+            time.sleep(2)
+
     print(f"\nDone! Total unique servers: {len(all_servers)}")
-    print(f"Results saved to {OUTPUT_FILE}")
