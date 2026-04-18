@@ -15,7 +15,7 @@ def get_invite_from_discovery_page(url):
             print(f"  Got status {response.status_code}")
             return None
 
-        match = re.search(r'https://discord\.gg/([a-zA-Z0-9]+)', response.text)
+        match = re.search(r'https://discord\.gg/([a-zA-Z0-9-]+)', response.text)
         if match:
             return match.group(1)
         else:
