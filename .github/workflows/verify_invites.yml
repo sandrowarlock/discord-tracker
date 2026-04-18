@@ -1,0 +1,32 @@
+name: Verify Discord Invites
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run invite verification
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python -u verify_invites.py
+
+      - name: Upload results CSV
+        uses: actions/upload-artifact@v4
+        with:
+          name: invite-verification
+          path: invite_verification.csv
+          retention-days: 30
