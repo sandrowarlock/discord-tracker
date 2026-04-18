@@ -8,7 +8,7 @@ def get_supabase():
     return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 DISCORD_INVITE_PATTERN = re.compile(
-    r'(?:discord\.gg(?:/|%2F)|discord\.com(?:/|%2F)invite(?:/|%2F))([a-zA-Z0-9]+)'
+    r'(?:discord\.gg(?:/|%2F)|discord\.com(?:/|%2F)invite(?:/|%2F))([a-zA-Z0-9-]+)'
 )
 
 def get_games_without_discord():
