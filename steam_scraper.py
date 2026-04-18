@@ -26,7 +26,7 @@ def send_alert(title, message, priority="default"):
         print(f"Failed to send alert: {e}")
 
 DISCORD_INVITE_PATTERN = re.compile(
-    r'(?:discord\.gg(?:/|%2F)|discord\.com(?:/|%2F)invite(?:/|%2F))([a-zA-Z0-9]+)'
+    r'(?:discord\.gg(?:/|%2F)|discord\.com(?:/|%2F)invite(?:/|%2F))([a-zA-Z0-9-]+)'
 )
 
 def get_steam_games(filter_type, limit):
